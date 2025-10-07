@@ -1,0 +1,83 @@
+function plot_all(organs,experimental_data,output_folder)
+if nargin <3
+    output_folder = "./results/";
+end
+
+if ~exist(output_folder, 'dir')
+   mkdir(output_folder);
+end
+output_leaves = fullfile(output_folder, "leaves_area/");
+if ~exist(output_leaves, 'dir')
+   mkdir(output_leaves);
+end
+
+leaves_area = organs.leaves.area;
+[nb_exp_days, nb_exp_leaves] = size(experimental_data);
+[nb_simu_days,nb_simu_leaves] = size(leaves_area);
+
+nb_leaves = max(nb_exp_leaves,nb_simu_leaves);
+disp(nb_leaves)
+for i=1:nb_leaves
+    disp(["Saving plot of leaf : ",i])
+    figure('Visible', 'off');
+    if i <= nb_exp_leaves
+        scatter(1:nb_exp_days,experimental_data(:,i), 's','DisplayName',"données") 
+        hold on;
+    end
+    if i <= nb_simu_leaves
+        plot(1:nb_simu_days, leaves_area(:,i), '-o','DisplayName',"modèle Greenlab"); % Graphique avec des points 'o' et lignes '-'
+    end   
+    legend('show','Location', 'northwest')
+    hold off;
+    xlabel('Time (days)');
+    ylabel("Leaf area (cm2)");
+    if i == 1
+        % cotyledon
+        title("Evolution of cotyledons (summed surface)" )
+        name = 'Area_cotyledons.png';
+    else
+        title(['Evolution of leaf n°' num2str(i-1) ])
+        kk=i-1
+        name = "Area_leaf_"+(i-1)+'.png';
+    end
+    
+    fileName = fullfile(output_leaves, name);  
+    saveas(gcf, fileName);
+    close(gcf);  
+end
+disp("Saving plot of leaves area")
+figure('Visible', 'off');
+plot(1:nb_simu_days, organs.global_area, '-o','DisplayName',"modèle Greenlab");
+legend('show','Location', 'northwest')
+xlabel('Time (days)');
+ylabel("Leaf area (cm2)");
+title("Evolution of rosette area")
+name = "rosette_area.png";
+fileName = fullfile(output_folder, name);
+saveas(gcf, fileName);
+close(gcf);  
+
+disp("Saving plot of demand")
+
+figure('Visible', 'off');
+plot(1:nb_simu_days,organs.root.demand,'-s','DisplayName',"Root")
+hold on 
+plot(1:nb_simu_days, organs.leaves.demand(:,1), '-o','DisplayName',"Cotyledon");
+for i=2:nb_simu_leaves
+    plot(1:nb_simu_days, organs.leaves.demand(:,i), '-','DisplayName',"Leaf"+i);
+    hold on
+end
+hold off
+legend('show','Location', 'northwest')
+xlabel('Time (days)');
+ylabel("Demand");
+title("Evolution of the demand")
+name = "demand.png";
+fileName = fullfile(output_folder, name);
+saveas(gcf, fileName);
+close(gcf);  
+
+
+
+
+
