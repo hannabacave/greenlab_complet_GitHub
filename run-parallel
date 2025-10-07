@@ -1,0 +1,72 @@
+#!/bin/bash
+
+usage() {
+	echo -e "\e[33m"
+	echo -e "╭╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╮"
+	echo -e "╎ \e[1;4mrun-parallel \e[0;33musage:                                              ╎"
+	echo -e "╎                                                                  ╎"
+	echo -e "╎ \e[2m./run-parallel ./projectFolder/myScript.m tag1 tag2 tag3\e[0;33m         ╎"
+	echo -e "╎                                                                  ╎"
+	echo -e "╎ This will try to run the provided MATLAB script at each version  ╎"
+	echo -e "╎ reffered by the provided git tags.                               ╎"
+	echo -e "╰╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╯\n"
+}
+
+SCRIPT_FILE_WITH_PATH=$1
+SCRIPT_PATH=${SCRIPT_FILE_WITH_PATH%/*}
+SCRIPT_FILE=${SCRIPT_FILE_WITH_PATH##*/}
+
+if [[ -e $SCRIPT_FILE_WITH_PATH ]]; then
+	SCRIPT_NAME=${SCRIPT_FILE%\.m}
+	if [[ $SCRIPT_FILE == $SCRIPT_NAME ]]; then
+		echo -e "\e[1;31mERROR: \e[0;31mThe provided file is not a MATLAB script file, exiting."
+		usage
+		exit 2
+	fi
+else
+	echo -e "\e[1;31mERROR: \e[0;31mThe script file \e[4m$SCRIPT_FILE\e[0;31m cannot be found, exiting."
+	usage
+	exit 1
+fi
+
+if [[ -d $SCRIPT_PATH ]]; then
+	cd $SCRIPT_PATH
+elif [[ $SCRIPT_PATH != $SCRIPT_FILE_WITH_PATH ]]; then
+	echo -e "\e[1;31mERROR: \e[0;31mThe path of the provided file does not exists, exiting."
+	usage
+	exit 3
+fi	
+
+TAGS=$*
+TAGS=${TAGS#* }
+
+for TAG in $TAGS; do
+	if git rev-parse "$TAG" >/dev/null 2>&1; then
+		EXISTING_TAGS="$EXISTING_TAGS $TAG"
+	else
+		NONEXISTENT_TAGS="$NONEXISTENT_TAGS \e[1;4;38;5;208m$TAG\e[0m"
+	fi
+done
+
+if [[ -n $NONEXISTENT_TAGS ]]; then
+	echo -e "\e[1;38;5;208m"
+	echo -e "╓─╌╌"
+	echo -e "║ WARNING\e[0;38;5;208m: The following versions (tags) don't exist, so nothing will be launched for them:"
+	echo -e "\e[1;38;5;208m║       $NONEXISTENT_TAGS"
+	echo -e "\e[1;38;5;208m╙─╌╌\e[0m"
+fi
+
+echo -e "\nExisiting tags : \e[1m$EXISTING_TAGS\n\e[0m"
+
+CURRENT_GIT_POSITION=`git rev-parse --abbrev-ref HEAD`
+
+for TAG in $EXISTING_TAGS; do
+	echo -e "\e[38;5;154m┏━ Running script for version (tag) \e[1;4m$TAG\e[0m\n"
+	git checkout $TAG
+	matlab -batch $SCRIPT_NAME
+	echo -e "\n\e[38;5;154m┗━ Running script for version (tag) \e[1;4m$TAG\e[0;38;5;154m: Done.\n\e[0m"
+done
+
+echo -e "Restoring git state to: \e[4m$CURRENT_GIT_POSITION\e[0m\n"
+
+git checkout $CURRENT_GIT_POSITION
